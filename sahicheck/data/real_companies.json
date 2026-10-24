@@ -1,0 +1,92 @@
+[
+  {
+    "name": "TCS",
+    "aliases": ["tcs", "tata consultancy services", "tata consultancy"],
+    "domains": ["tcs.com"]
+  },
+  {
+    "name": "Infosys",
+    "aliases": ["infosys", "infosys limited"],
+    "domains": ["infosys.com"]
+  },
+  {
+    "name": "Wipro",
+    "aliases": ["wipro", "wipro limited", "wipro enterprises"],
+    "domains": ["wipro.com"]
+  },
+  {
+    "name": "HCLTech",
+    "aliases": ["hcl", "hcltech", "hcl technologies"],
+    "domains": ["hcltech.com"]
+  },
+  {
+    "name": "Tech Mahindra",
+    "aliases": ["tech mahindra", "techm"],
+    "domains": ["techmahindra.com"]
+  },
+  {
+    "name": "Cognizant",
+    "aliases": ["cognizant", "cts"],
+    "domains": ["cognizant.com"]
+  },
+  {
+    "name": "Accenture",
+    "aliases": ["accenture"],
+    "domains": ["accenture.com"]
+  },
+  {
+    "name": "Capgemini",
+    "aliases": ["capgemini"],
+    "domains": ["capgemini.com"]
+  },
+  {
+    "name": "Amazon",
+    "aliases": ["amazon", "amazon india"],
+    "domains": ["amazon.com", "amazon.jobs"]
+  },
+  {
+    "name": "Microsoft",
+    "aliases": ["microsoft", "microsoft india"],
+    "domains": ["microsoft.com"]
+  },
+  {
+    "name": "Google",
+    "aliases": ["google", "google india"],
+    "domains": ["google.com"]
+  },
+  {
+    "name": "Flipkart",
+    "aliases": ["flipkart"],
+    "domains": ["flipkart.com"]
+  },
+  {
+    "name": "Paytm",
+    "aliases": ["paytm", "one97 communications"],
+    "domains": ["paytm.com"]
+  },
+  {
+    "name": "Zomato",
+    "aliases": ["zomato"],
+    "domains": ["zomato.com"]
+  },
+  {
+    "name": "Deloitte",
+    "aliases": ["deloitte"],
+    "domains": ["deloitte.com"]
+  },
+  {
+    "name": "HDFC Bank",
+    "aliases": ["hdfc", "hdfc bank"],
+    "domains": ["hdfcbank.com"]
+  },
+  {
+    "name": "ICICI Bank",
+    "aliases": ["icici", "icici bank"],
+    "domains": ["icicibank.com"]
+  },
+  {
+    "name": "State Bank of India",
+    "aliases": ["sbi", "state bank of india"],
+    "domains": ["sbi.co.in"]
+  }
+]

@@ -1,0 +1,11 @@
+streamlit
+google-genai
+pydantic>=2
+tldextract
+rapidfuzz
+httpx
+pypdfium2
+pypdf
+pillow
+pytest
+python-dotenv
