@@ -3,6 +3,7 @@
 import hashlib
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Iterator
 
@@ -19,6 +20,7 @@ from core.agent3_synth import (
     HARD_CAP_IDS,
     build_final,
     build_next_steps,
+    get_last_explanation_source,
     score_and_verdict,
     template_explanation,
 )
@@ -75,10 +77,14 @@ def run_pipeline(
         return
 
     events_to_cache: list[tuple[str, dict]] = []
+    t_start = time.time()
 
     try:
         # Stage 1: Extraction
+        t0 = time.time()
         extraction_res = extract(text=text)
+        _ = time.time() - t0  # Memory-only stage duration
+
         evt_extracted = PipelineEvent(
             stage="extracted",
             payload={
@@ -90,7 +96,9 @@ def run_pipeline(
         yield evt_extracted
 
         # Stage 2: Offline Rule Checking
+        t1 = time.time()
         flags = run_checker(extraction=extraction_res, text=text)
+        _ = time.time() - t1  # Memory-only stage duration
 
         # Compute preliminary verdict based solely on offline red flags
         prelim_score, prelim_verdict_str, _ = score_and_verdict(flags, [])
@@ -119,6 +127,7 @@ def run_pipeline(
         # If any hard-fail scam indicator is present, skip web checks to save latency
         skip_web = any(f.id in HARD_CAP_IDS for f in flags)
 
+        t2 = time.time()
         collected_checks = []
         for check in run_verifier(
             extraction=extraction_res,
@@ -133,8 +142,10 @@ def run_pipeline(
             )
             events_to_cache.append((evt_check.stage, evt_check.payload))
             yield evt_check
+        _ = time.time() - t2  # Memory-only stage duration
 
         # Stage 4: Synthesis & Final Verdict
+        t3 = time.time()
         final_verdict = build_final(
             extraction_result=extraction_res,
             flags=flags,
@@ -142,13 +153,20 @@ def run_pipeline(
             text=text,
             web_checks=web_checks,
         )
+        _ = time.time() - t3  # Memory-only stage duration
+
+        total_elapsed_s = round(time.time() - t_start, 2)
+        final_payload = final_verdict.model_dump()
+        final_payload["elapsed_s"] = total_elapsed_s
+        final_payload["explanation_source"] = get_last_explanation_source()
+
         evt_final = PipelineEvent(
             stage="final",
-            payload=final_verdict.model_dump(),
+            payload=final_payload,
         )
         events_to_cache.append((evt_final.stage, evt_final.payload))
 
-        # Store in LRU in-memory cache upon successful final synthesis
+        # Store in LRU in-memory cache upon successful final synthesis only
         if len(_PIPELINE_CACHE) >= _MAX_PIPELINE_CACHE_SIZE:
             _PIPELINE_CACHE.pop(next(iter(_PIPELINE_CACHE)))
         _PIPELINE_CACHE[cache_key] = events_to_cache
@@ -157,6 +175,7 @@ def run_pipeline(
 
     except Exception:
         # Sanitized error message without leaking user input or internal traces
+        # Runs ending in an error event are NEVER cached
         yield PipelineEvent(
             stage="error",
             payload={"message": "An error occurred while analyzing the job offer. Please try again."},

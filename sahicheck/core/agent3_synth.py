@@ -171,24 +171,23 @@ def gemma_explanation(
         '{"summary": "<=2 sentences", "flag_explanations": {"<flag_id>": "one sentence why it matters"}}\n'
     )
 
-    # Attempt up to 2 times on validation failure
-    for _ in range(2):
-        try:
-            raw_text = ask_gemma(prompt=prompt, json_mode=True)
-            cleaned = raw_text.strip()
-            if cleaned.startswith("```"):
-                lines = cleaned.splitlines()
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                cleaned = "\n".join(lines).strip()
-            parsed = json.loads(cleaned)
+    # Single attempt with 15s timeout: no retries. Fall back to template immediately on any failure.
+    try:
+        raw_text = ask_gemma(prompt=prompt, json_mode=True, timeout_s=15, max_retries=0)
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+        parsed = json.loads(cleaned)
 
-            if _validate_explanation(parsed, valid_flag_ids):
-                return parsed, True
-        except (LLMError, Exception):
-            pass
+        if _validate_explanation(parsed, valid_flag_ids):
+            return parsed, True
+    except Exception:
+        pass
 
     return template_explanation(verdict, score, flags, checks), False
 

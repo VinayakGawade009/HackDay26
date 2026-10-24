@@ -11,6 +11,34 @@ import streamlit as st
 import limits
 
 
+ID_TITLES: dict[str, str] = {
+    # Keyword rules from data/rules.json
+    "fee_demand": "Fee demand",
+    "upi_or_bank_request": "UPI or bank payment request",
+    "otp_request": "OTP or verification code request",
+    "id_document_request": "Identity document request",
+    "urgency": "Artificial urgency",
+    "guaranteed_job_or_pay": "Guaranteed job or unrealistic pay",
+    "no_interview": "No interview or direct selection",
+    "offplatform_channel_only": "Off-platform chat only",
+    # Domain rules
+    "free_mail_hr": "Free personal email used by HR",
+    "lookalike_domain": "Lookalike company domain",
+    "suspicious_tld": "Suspicious top-level domain",
+    "url_shortener": "Link shortener used",
+    "blocklisted_domain": "Blocklisted scam domain",
+    # Verifier checks
+    "official_domain": "Official company domain",
+}
+
+
+def get_readable_title(raw_id: str) -> str:
+    """Map rule or check ID to plain-English title with fallback."""
+    if not raw_id:
+        return "Unknown Check"
+    return ID_TITLES.get(raw_id) or raw_id.replace("_", " ").strip().capitalize()
+
+
 def escape(val: Any) -> str:
     """Escapes user and AI generated text to prevent HTML injection."""
     if val is None:
@@ -101,6 +129,7 @@ def render_verdict_card(verdict: dict, preliminary: bool = False) -> None:
     score = verdict.get("legitimacy_score", 50)
     summary = escape(verdict.get("summary", ""))
     coverage = escape(verdict.get("evidence_coverage", "low"))
+    explanation_source = verdict.get("explanation_source", "")
 
     # Map raw verdict enum to corresponding color styling class
     card_class = {
@@ -139,6 +168,12 @@ def render_verdict_card(verdict: dict, preliminary: bool = False) -> None:
         else ""
     )
 
+    template_note = (
+        '<div style="font-size: 11px; opacity: 0.85; margin-top: 4px;">ℹ️ Explanation written from fixed templates</div>'
+        if explanation_source == "template" and not preliminary
+        else ""
+    )
+
     st.markdown(
         f"""
         <div class="verdict-card {card_class}">
@@ -152,6 +187,7 @@ def render_verdict_card(verdict: dict, preliminary: bool = False) -> None:
                 </div>
             </div>
             <p style="margin: 8px 0; font-size: 14px; line-height: 1.5;">{summary}</p>
+            {template_note}
             {hard_cap_html}
             {final_reminder}
         </div>
@@ -159,11 +195,12 @@ def render_verdict_card(verdict: dict, preliminary: bool = False) -> None:
         unsafe_allow_html=True,
     )
 
-    # Render detected red flags
+    # Render detected red flags with human-readable titles
     if red_flags:
         st.markdown("<h4 style='font-size: 15px; margin: 16px 0 8px 0;'>Detected Red Flags</h4>", unsafe_allow_html=True)
         for flag in red_flags:
-            flag_id = escape(flag.get("id", "Warning")).replace("_", " ").title()
+            raw_flag_id = flag.get("id", "Warning")
+            flag_title = escape(get_readable_title(raw_flag_id))
             severity = flag.get("severity", "medium").lower()
             badge_class = f"badge-{severity}"
             evidence = escape(flag.get("evidence", ""))
@@ -173,7 +210,7 @@ def render_verdict_card(verdict: dict, preliminary: bool = False) -> None:
                 f"""
                 <div class="flag-card">
                     <div class="flag-header">
-                        <span class="flag-title">🚩 {flag_id}</span>
+                        <span class="flag-title">🚩 {flag_title}</span>
                         <span class="{badge_class}">{severity.upper()} SEVERITY</span>
                     </div>
                     <div class="flag-quote">“{evidence}”</div>
@@ -192,7 +229,8 @@ def render_checks_table(checks: list[dict]) -> None:
     st.markdown("<h4 style='font-size: 15px; margin: 16px 0 8px 0;'>Verification Checks</h4>", unsafe_allow_html=True)
 
     for chk in checks:
-        name = escape(chk.get("name", "Verification Check"))
+        raw_id = chk.get("id", "")
+        name = escape(chk.get("name") or get_readable_title(raw_id))
         status = chk.get("status", "unavailable").lower()
         tier = escape(chk.get("tier", "supporting"))
         detail = escape(chk.get("detail", ""))
@@ -204,7 +242,6 @@ def render_checks_table(checks: list[dict]) -> None:
             status_icon = "🔴 Failed"
             status_class = "check-status-failed"
         else:
-            # Unavailable means "could not check", rendered in neutral grey, strictly not a failure
             status_icon = "⚪ Unable to verify"
             status_class = "check-status-unavailable"
 
@@ -226,7 +263,7 @@ def render_checks_table(checks: list[dict]) -> None:
 
 
 def render_positive_signs(signs: list[str]) -> None:
-    """Renders identified legitimacy or positive signs."""
+    """Renders identified legitimacy or positive signs directly from payload."""
     if not signs:
         return
 
@@ -267,7 +304,13 @@ def render_verify_links(links: list[dict]) -> None:
     if not links:
         return
 
-    st.markdown("<h4 style='font-size: 15px; margin: 16px 0 8px 0;'>Independent Verification Links</h4>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <h4 style='font-size: 15px; margin: 16px 0 4px 0;'>Links to verify this employer</h4>
+        <p style='font-size: 12px; color: #555; margin-bottom: 8px;'>These are starting points for your own checks; they are not counted in the result.</p>
+        """,
+        unsafe_allow_html=True,
+    )
     links_html = ['<div class="verify-links-row">']
     for link in links:
         label = escape(link.get("label", "Verify"))
@@ -289,6 +332,25 @@ def render_error_box(message: str) -> None:
             <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.85;">💡 <em>Hint: Check your input or try clicking 'Try a sample' to test a standard offer verification.</em></p>
         </div>
         """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_footer() -> None:
+    """Renders transparent footer indicating open-weight model details."""
+    try:
+        import llm
+        model_name = getattr(llm, "last_model_used", None) or llm.get_last_model_used() or ""
+    except Exception:
+        model_name = ""
+
+    if model_name:
+        model_text = f"Model: {model_name} (open-weight, hosted via Gemini API)"
+    else:
+        model_text = "Model: Gemma (open-weight, hosted via Gemini API)"
+
+    st.markdown(
+        f'<div style="text-align: center; font-size: 12px; color: #777; margin-top: 32px; padding: 16px 0; border-top: 1px solid #e0e0e0;">{escape(model_text)}</div>',
         unsafe_allow_html=True,
     )
 

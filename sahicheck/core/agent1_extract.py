@@ -174,7 +174,7 @@ def extract(
 
     llm_data: dict[str, Any] = {}
     try:
-        raw_response = ask_gemma(prompt=prompt, json_mode=True)
+        raw_response = ask_gemma(prompt=prompt, json_mode=True, timeout_s=30)
         cleaned = raw_response.strip()
         if cleaned.startswith("```"):
             lines = cleaned.splitlines()

@@ -50,7 +50,7 @@ def _get_api_key() -> str | None:
 
 
 def _get_model_name() -> str:
-    """Read GEMMA_MODEL from environment or Streamlit secrets with default fallback."""
+    """Read GEMMA_MODEL from environment or Streamlit secrets, defaulting to verified gemma-4-26b-a4b-it."""
     model = os.environ.get("GEMMA_MODEL")
     if model and model.strip():
         return model.strip()
@@ -62,7 +62,7 @@ def _get_model_name() -> str:
                 return val
     except Exception:
         pass
-    return "gemma-4-31b-it"
+    return "gemma-4-26b-a4b-it"
 
 
 def _is_retryable(error: Exception) -> bool:
@@ -89,13 +89,31 @@ def _make_cache_key(model: str, prompt: str, image_bytes: bytes | None, json_mod
     return hasher.hexdigest()
 
 
+# Cached Client instance for HTTP keep-alive connection reuse
+_CLIENT: Any = None
+
+
+def _get_client(api_key: str) -> Any:
+    """Return cached genai.Client for connection pooling and lower latency."""
+    global _CLIENT
+    if _CLIENT is None:
+        try:
+            from google import genai
+            _CLIENT = genai.Client(api_key=api_key)
+        except ImportError:
+            raise LLMError("google-genai library is not installed.")
+    return _CLIENT
+
+
 def ask_gemma(
     prompt: str,
     image_bytes: bytes | None = None,
     image_mime: str = "image/png",
     json_mode: bool = False,
+    timeout_s: int = 30,
+    max_retries: int = 1,
 ) -> str:
-    """Query Gemma model via google-genai SDK with caching, retry logic, and error sanitization."""
+    """Query Gemma model via google-genai SDK with bounded timeout, minimal retry, and caching."""
     global last_model_used
 
     primary_model = _get_model_name()
@@ -109,15 +127,9 @@ def ask_gemma(
     if not api_key:
         raise LLMError("API key not configured. Set GEMINI_API_KEY in .env or Streamlit secrets.")
 
-    try:
-        from google import genai
-        from google.genai import types
-    except ImportError:
-        raise LLMError("google-genai library is not installed.")
+    client = _get_client(api_key)
+    from google.genai import types
 
-    client = genai.Client(api_key=api_key)
-
-    # Build prompt and optional image attachment
     contents: list[Any] = []
     if image_bytes is not None:
         contents.append(types.Part.from_bytes(data=image_bytes, mime_type=image_mime))
@@ -127,8 +139,8 @@ def ask_gemma(
         actual_prompt = f"{prompt}\n\nIMPORTANT: Output valid JSON only, without markdown fences or other text."
     contents.append(actual_prompt)
 
-    # Configure timeout (HttpOptions expects milliseconds) and response format
-    timeout_ms = int(limits.LLM_TIMEOUT_S * 1000)
+    # Per-attempt timeout in milliseconds
+    timeout_ms = int(timeout_s * 1000)
     config_params: dict[str, Any] = {
         "http_options": types.HttpOptions(timeout=timeout_ms),
     }
@@ -137,16 +149,14 @@ def ask_gemma(
 
     config = types.GenerateContentConfig(**config_params)
 
-    # Primary model with automatic fallback to gemma-4-26b-a4b-it if primary encounters 500 error
+    # Candidate models: default is gemma-4-26b-a4b-it.
+    # Only try an alternate model if primary is NOT 26b and fails.
     candidate_models = [primary_model]
     if primary_model != "gemma-4-26b-a4b-it":
         candidate_models.append("gemma-4-26b-a4b-it")
 
-    # Retry loop with exponential backoff for 429 and 5xx errors (max 3 tries, wait under 20s)
-    # backoffs: 2s, 4s, 8s -> total 14s < 20s
-    max_retries = 3
-    for m_name in candidate_models:
-        for attempt in range(max_retries):
+    for m_idx, m_name in enumerate(candidate_models):
+        for attempt in range(max_retries + 1):
             try:
                 response = client.models.generate_content(
                     model=m_name,
@@ -181,15 +191,16 @@ def ask_gemma(
                     except Exception as inner_exc:
                         exc = inner_exc
 
-                # If server error (500) and an alternate model is available, move to fallback
-                if (getattr(exc, "code", None) == 500 or "500" in str(exc)) and len(candidate_models) > 1 and m_name == candidate_models[0]:
-                    break
-
-                if attempt < max_retries - 1 and _is_retryable(error=exc):
-                    backoff = min(limits.LLM_BACKOFF_S * (2 ** attempt), 8)
-                    time.sleep(backoff)
+                # If transient error and retries remain, wait 2s and retry
+                if attempt < max_retries and _is_retryable(error=exc):
+                    time.sleep(2)
                     continue
+
                 break
+
+        # Only try alternate model if we haven't exhausted our 1 alternate try
+        if m_idx > 0:
+            break
 
     # Sanitized error message without leaking sensitive user input or content
     raise LLMError("AI model service is currently unavailable or encountered an error. Please try again.")

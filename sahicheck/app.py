@@ -17,6 +17,7 @@ from ui.components import (
     render_diagnostics,
     render_error_box,
     render_extracted_details,
+    render_footer,
     render_header,
     render_next_steps,
     render_notes,
@@ -47,24 +48,23 @@ init_session_state()
 
 
 def get_pipeline():
-    """Lazily imports pipeline function based on USE_MOCKS environment variable.
-
-    Defaults to mocks when USE_MOCKS=1 to decouple UI development from backend.
-    """
-    use_mocks = os.getenv("USE_MOCKS", "1").strip().lower() in ("1", "true", "yes")
+    """Import pipeline function. Defaults to real core.pipeline unless USE_MOCKS=1 is explicitly set."""
+    use_mocks = os.getenv("USE_MOCKS", "0").strip().lower() in ("1", "true", "yes")
     if use_mocks:
-        from mocks import run_pipeline
+        try:
+            from mocks import run_pipeline
 
-        return run_pipeline
+            return run_pipeline, True
+        except Exception:
+            return None, True
+
     try:
         from core.pipeline import run_pipeline
 
-        return run_pipeline
-    except Exception as exc:
-        st.warning(f"Backend core.pipeline unavailable ({exc}); falling back to mocks.")
-        from mocks import run_pipeline
-
-        return run_pipeline
+        return run_pipeline, False
+    except Exception:
+        # Never silently fallback to mocks
+        return None, False
 
 
 def find_cached_sample(raw_text: str) -> list[dict] | None:
@@ -85,7 +85,6 @@ def find_cached_sample(raw_text: str) -> list[dict] | None:
                 if isinstance(events, list) and events:
                     return events
     except Exception:
-        # Fall through gracefully on any file read or decoding anomaly
         return None
     return None
 
@@ -93,12 +92,19 @@ def find_cached_sample(raw_text: str) -> list[dict] | None:
 # 2. Main Page Header
 render_header()
 
+# Check pipeline availability or mock status
+pipeline_fn, is_mock = get_pipeline()
+if is_mock:
+    st.warning("Demo mode: sample data, not a real check.")
+elif pipeline_fn is None:
+    render_error_box("The checker is not available right now.")
+    st.stop()
+
 # 3. Two-Column Input Layout (Stacked on Mobile)
 col_text, col_upload = st.columns([1, 1], gap="medium")
 
 with col_text:
     st.markdown("<strong>📝 Paste Offer Text</strong>", unsafe_allow_html=True)
-    # Text input area with live counter
     current_text = st.text_area(
         label="Paste message or offer text",
         key="offer_text_input",
@@ -124,6 +130,7 @@ with col_upload:
         f'<div class="char-counter">PNG or JPG, up to {limits.MAX_IMAGE_MB} MB</div>',
         unsafe_allow_html=True,
     )
+
 
 def populate_sample() -> None:
     """Callback triggered before widget instantiation to populate sample text."""
@@ -192,7 +199,6 @@ if check_clicked:
 
     record_submission()
     current_run = start_run()
-    pipeline_fn = get_pipeline()
 
     # Streaming state containers
     checks_accumulated: list[dict] = []
@@ -202,115 +208,117 @@ if check_clicked:
     pipeline_errored = False
 
     try:
-        status_placeholder.info("Reading the message...")
-        event_stream = pipeline_fn(
-            text=raw_text or None,
-            image_bytes=image_bytes,
-            image_mime=image_mime,
-            web_checks=web_checks,
-        )
+        # Check first for cached verified sample replay
+        cached_events = find_cached_sample(raw_text)
+        if cached_events:
+            status_placeholder.info("Replaying verified sample analysis...")
+            for cached_raw in cached_events:
+                time.sleep(0.5)
+                c_stage = cached_raw.get("stage")
+                c_payload = cached_raw.get("payload", {})
 
-        for event in event_stream:
-            # Session Guard: Ensure event belongs to the active run
-            if not is_current_run(current_run):
-                break
-
-            stage = event.stage
-            payload = event.payload
-
-            # Stage 1: Extracted entities
-            if stage == "extracted":
-                status_placeholder.info("Checking red flags...")
-                extracted_data = payload.get("extracted", {})
-                transcript_text = payload.get("transcript", "")
-                with extracted_placeholder.expander("🔍 Extracted Details", expanded=False):
-                    render_extracted_details(extracted_data, transcript_text)
-
-            # Stage 2: Preliminary verdict from red flags
-            elif stage == "checker_done":
-                status_placeholder.info("Verifying the company...")
-                with verdict_placeholder.container():
-                    render_verdict_card(payload, preliminary=True)
-
-            # Stage 3: Verification checks arriving individually
-            elif stage == "verifier_check":
-                checks_accumulated.append(payload)
-                with checks_placeholder.container():
-                    render_checks_table(checks_accumulated)
-
-            # Stage 4: Final verdict report
-            elif stage == "final":
-                pipeline_succeeded = True
-                status_placeholder.empty()
-                verdict_placeholder.empty()  # Replace preliminary card
-
-                with final_placeholder.container():
-                    render_verdict_card(payload, preliminary=False)
-                    if checks_accumulated:
+                if c_stage == "extracted":
+                    extracted_data = c_payload.get("extracted", {})
+                    transcript_text = c_payload.get("transcript", "")
+                    with extracted_placeholder.expander("🔍 Extracted Details", expanded=False):
+                        render_extracted_details(extracted_data, transcript_text)
+                elif c_stage == "checker_done":
+                    with verdict_placeholder.container():
+                        render_verdict_card(c_payload, preliminary=True)
+                elif c_stage == "verifier_check":
+                    checks_accumulated.append(c_payload)
+                    with checks_placeholder.container():
                         render_checks_table(checks_accumulated)
-                    if payload.get("positive_signs"):
-                        render_positive_signs(payload["positive_signs"])
-                    if payload.get("next_steps"):
-                        render_next_steps(payload["next_steps"])
-                    if payload.get("verify_links"):
-                        render_verify_links(payload["verify_links"])
+                elif c_stage == "final":
+                    pipeline_succeeded = True
+                    verdict_placeholder.empty()
+                    elapsed_val = c_payload.get("elapsed_s", 0.5)
+                    status_placeholder.success(f"Checked in {elapsed_val} seconds")
+                    with final_placeholder.container():
+                        render_verdict_card(c_payload, preliminary=False)
+                        if checks_accumulated:
+                            render_checks_table(checks_accumulated)
+                        if c_payload.get("positive_signs"):
+                            render_positive_signs(c_payload["positive_signs"])
+                        if c_payload.get("next_steps"):
+                            render_next_steps(c_payload["next_steps"])
+                        if c_payload.get("verify_links"):
+                            render_verify_links(c_payload["verify_links"])
+                    with diagnostics_placeholder.container():
+                        render_diagnostics(transcript_text, extracted_data, c_payload)
+                    break
+        else:
+            status_placeholder.info("Analyzing offer... This can take up to a minute.")
+            event_stream = pipeline_fn(
+                text=raw_text or None,
+                image_bytes=image_bytes,
+                image_mime=image_mime,
+                web_checks=web_checks,
+            )
 
-                with diagnostics_placeholder.container():
-                    render_diagnostics(transcript_text, extracted_data, payload)
-                break
-
-            # Stage 5: Error event
-            elif stage == "error":
-                # Check for cached samples fallback replay
-                cached_events = find_cached_sample(raw_text)
-                if cached_events:
-                    status_placeholder.info("Replaying cached verified analysis...")
-                    for cached_raw in cached_events:
-                        time.sleep(0.5)
-                        c_stage = cached_raw.get("stage")
-                        c_payload = cached_raw.get("payload", {})
-
-                        if c_stage == "extracted":
-                            extracted_data = c_payload.get("extracted", {})
-                            transcript_text = c_payload.get("transcript", "")
-                            with extracted_placeholder.expander("🔍 Extracted Details", expanded=False):
-                                render_extracted_details(extracted_data, transcript_text)
-                        elif c_stage == "checker_done":
-                            with verdict_placeholder.container():
-                                render_verdict_card(c_payload, preliminary=True)
-                        elif c_stage == "verifier_check":
-                            checks_accumulated.append(c_payload)
-                            with checks_placeholder.container():
-                                render_checks_table(checks_accumulated)
-                        elif c_stage == "final":
-                            pipeline_succeeded = True
-                            status_placeholder.empty()
-                            verdict_placeholder.empty()
-                            with final_placeholder.container():
-                                render_verdict_card(c_payload, preliminary=False)
-                                if checks_accumulated:
-                                    render_checks_table(checks_accumulated)
-                                if c_payload.get("positive_signs"):
-                                    render_positive_signs(c_payload["positive_signs"])
-                                if c_payload.get("next_steps"):
-                                    render_next_steps(c_payload["next_steps"])
-                                if c_payload.get("verify_links"):
-                                    render_verify_links(c_payload["verify_links"])
-                            with diagnostics_placeholder.container():
-                                render_diagnostics(transcript_text, extracted_data, c_payload)
-                            break
+            for event in event_stream:
+                if not is_current_run(current_run):
                     break
 
-                # Standard error box
-                pipeline_errored = True
-                status_placeholder.empty()
-                verdict_placeholder.empty()
-                checks_placeholder.empty()
-                with error_placeholder.container():
-                    render_error_box(payload.get("message", "Verification could not be completed."))
-                break
+                stage = event.stage
+                payload = event.payload
 
-        # If generator terminates without a final report or error event
+                # Stage 1: Extracted entities
+                if stage == "extracted":
+                    status_placeholder.info("Checking red flags... This can take up to a minute.")
+                    extracted_data = payload.get("extracted", {})
+                    transcript_text = payload.get("transcript", "")
+                    with extracted_placeholder.expander("🔍 Extracted Details", expanded=False):
+                        render_extracted_details(extracted_data, transcript_text)
+
+                # Stage 2: Preliminary verdict from red flags
+                elif stage == "checker_done":
+                    status_placeholder.info("Verifying the company... This can take up to a minute.")
+                    with verdict_placeholder.container():
+                        render_verdict_card(payload, preliminary=True)
+
+                # Stage 3: Verification checks
+                elif stage == "verifier_check":
+                    checks_accumulated.append(payload)
+                    with checks_placeholder.container():
+                        render_checks_table(checks_accumulated)
+
+                # Stage 4: Final verdict report
+                elif stage == "final":
+                    pipeline_succeeded = True
+                    verdict_placeholder.empty()
+
+                    elapsed_val = payload.get("elapsed_s")
+                    if elapsed_val:
+                        status_placeholder.success(f"Checked in {elapsed_val} seconds")
+                    else:
+                        status_placeholder.empty()
+
+                    with final_placeholder.container():
+                        render_verdict_card(payload, preliminary=False)
+                        if checks_accumulated:
+                            render_checks_table(checks_accumulated)
+                        if payload.get("positive_signs"):
+                            render_positive_signs(payload["positive_signs"])
+                        if payload.get("next_steps"):
+                            render_next_steps(payload["next_steps"])
+                        if payload.get("verify_links"):
+                            render_verify_links(payload["verify_links"])
+
+                    with diagnostics_placeholder.container():
+                        render_diagnostics(transcript_text, extracted_data, payload)
+                    break
+
+                # Stage 5: Error event
+                elif stage == "error":
+                    pipeline_errored = True
+                    status_placeholder.empty()
+                    verdict_placeholder.empty()
+                    checks_placeholder.empty()
+                    with error_placeholder.container():
+                        render_error_box(payload.get("message", "Verification could not be completed."))
+                    break
+
         if not pipeline_succeeded and not pipeline_errored and is_current_run(current_run):
             status_placeholder.empty()
             with error_placeholder.container():
@@ -320,3 +328,6 @@ if check_clicked:
 
     finally:
         finish_run()
+
+# 8. Honest Model Attributions Footer
+render_footer()

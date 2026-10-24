@@ -1,0 +1,457 @@
+[
+  {
+    "id": "sample_fee_scam",
+    "label": "Fee Demand Scam",
+    "text": "Dear Candidate, You are shortlisted for Work-from-Home Data Assistant at Apex Global Solutions. Monthly stipend: Rs. 45,000. Please deposit Rs. 1,500 registration charge (refundable) via UPI to hr-apex@upi for onboarding kit allocation. Connect immediately on Telegram: @ApexHR_Instant to receive your appointment letter.",
+    "events": [
+      {
+        "stage": "extracted",
+        "payload": {
+          "extracted": {
+            "company": "Apex Global Solutions",
+            "role": "Work-from-Home Data Assistant",
+            "pay": "Rs. 45,000",
+            "channel": "Telegram",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [
+              "hr-apex@upi"
+            ],
+            "amounts": [
+              "Rs. 45,000",
+              "Rs. 1,500"
+            ],
+            "unverified_fields": []
+          },
+          "transcript": "Dear Candidate, You are shortlisted for Work-from-Home Data Assistant at Apex Global Solutions. Monthly stipend: Rs. 45,000. Please deposit Rs. 1,500 registration charge (refundable) via UPI to hr-apex@upi for onboarding kit allocation. Connect immediately on Telegram: @ApexHR_Instant to receive your appointment letter."
+        }
+      },
+      {
+        "stage": "checker_done",
+        "payload": {
+          "verdict": "SCAM",
+          "legitimacy_score": 15,
+          "evidence_coverage": "low",
+          "summary": "High risk: We detected 2 critical warning indicator(s) in this offer (e.g., registration charge, immediately).",
+          "red_flags": [
+            {
+              "id": "fee_demand",
+              "severity": "high",
+              "evidence": "registration charge",
+              "why_it_matters": "Legitimate employers never demand registration, training, security deposit, or kit fees from candidates."
+            },
+            {
+              "id": "urgency",
+              "severity": "low",
+              "evidence": "immediately",
+              "why_it_matters": "Artificial urgency is used by fraudsters to rush candidates into acting without verifying details."
+            }
+          ],
+          "checks": [],
+          "positive_signs": [],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline).",
+            "Real employers do not charge candidates to hire them."
+          ],
+          "verify_links": [],
+          "extracted": {
+            "company": "Apex Global Solutions",
+            "role": "Work-from-Home Data Assistant",
+            "pay": "Rs. 45,000",
+            "channel": "Telegram",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [
+              "hr-apex@upi"
+            ],
+            "amounts": [
+              "Rs. 45,000",
+              "Rs. 1,500"
+            ],
+            "unverified_fields": []
+          },
+          "preliminary": true
+        }
+      },
+      {
+        "stage": "verifier_check",
+        "payload": {
+          "id": "official_domain",
+          "name": "Official Domain Check",
+          "tier": "strong",
+          "status": "unavailable",
+          "detail": "Company not in our list of known employers",
+          "source": "offline",
+          "score_delta": 0
+        }
+      },
+      {
+        "stage": "final",
+        "payload": {
+          "verdict": "SCAM",
+          "legitimacy_score": 15,
+          "evidence_coverage": "low",
+          "summary": "High risk: We detected 2 critical warning indicator(s) in this offer (e.g., registration charge, immediately).",
+          "red_flags": [
+            {
+              "id": "fee_demand",
+              "severity": "high",
+              "evidence": "registration charge",
+              "why_it_matters": "Legitimate employers never demand registration, training, security deposit, or kit fees from candidates."
+            },
+            {
+              "id": "urgency",
+              "severity": "low",
+              "evidence": "immediately",
+              "why_it_matters": "Artificial urgency is used by fraudsters to rush candidates into acting without verifying details."
+            }
+          ],
+          "checks": [
+            {
+              "id": "official_domain",
+              "name": "Official Domain Check",
+              "tier": "strong",
+              "status": "unavailable",
+              "detail": "Company not in our list of known employers",
+              "source": "offline",
+              "score_delta": 0
+            }
+          ],
+          "positive_signs": [],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline).",
+            "Real employers do not charge candidates to hire them."
+          ],
+          "verify_links": [
+            {
+              "label": "LinkedIn Company Page",
+              "url": "https://www.linkedin.com/search/results/companies/?keywords=Apex+Global+Solutions"
+            },
+            {
+              "label": "Glassdoor Reviews",
+              "url": "https://www.glassdoor.co.in/Search/results.htm?keyword=Apex+Global+Solutions"
+            },
+            {
+              "label": "AmbitionBox Company Profile",
+              "url": "https://www.ambitionbox.com/search?keyword=Apex+Global+Solutions"
+            },
+            {
+              "label": "Google Scam Search",
+              "url": "https://www.google.com/search?q=Apex+Global+Solutions+scam"
+            },
+            {
+              "label": "Ministry of Corporate Affairs (MCA)",
+              "url": "https://www.mca.gov.in/content/mca/global/en/mca/master-data/MDS.html"
+            },
+            {
+              "label": "National Cyber Crime Portal",
+              "url": "https://cybercrime.gov.in"
+            }
+          ],
+          "extracted": {
+            "company": "Apex Global Solutions",
+            "role": "Work-from-Home Data Assistant",
+            "pay": "Rs. 45,000",
+            "channel": "Telegram",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [
+              "hr-apex@upi"
+            ],
+            "amounts": [
+              "Rs. 45,000",
+              "Rs. 1,500"
+            ],
+            "unverified_fields": []
+          },
+          "preliminary": false,
+          "elapsed_s": 34.7,
+          "explanation_source": "template"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sample_tcs_interview",
+    "label": "Official TCS Interview",
+    "text": "Hello, this is regarding your interview at TCS. Please visit tcs.com/careers or contact careers@tcs.com for next steps. Bring your original documents on the joining day.",
+    "events": [
+      {
+        "stage": "extracted",
+        "payload": {
+          "extracted": {
+            "company": "TCS",
+            "role": "",
+            "pay": "",
+            "channel": "Email",
+            "emails": [
+              "careers@tcs.com"
+            ],
+            "phones": [],
+            "urls": [
+              "tcs.com/careers"
+            ],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "transcript": "Hello, this is regarding your interview at TCS. Please visit tcs.com/careers or contact careers@tcs.com for next steps. Bring your original documents on the joining day."
+        }
+      },
+      {
+        "stage": "checker_done",
+        "payload": {
+          "verdict": "SUSPICIOUS",
+          "legitimacy_score": 50,
+          "evidence_coverage": "low",
+          "summary": "Caution: Insufficient verifiable employer details were found in this offer.",
+          "red_flags": [],
+          "checks": [],
+          "positive_signs": [],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline)."
+          ],
+          "verify_links": [],
+          "extracted": {
+            "company": "TCS",
+            "role": "",
+            "pay": "",
+            "channel": "Email",
+            "emails": [
+              "careers@tcs.com"
+            ],
+            "phones": [],
+            "urls": [
+              "tcs.com/careers"
+            ],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "preliminary": true
+        }
+      },
+      {
+        "stage": "verifier_check",
+        "payload": {
+          "id": "official_domain",
+          "name": "Official Domain Check",
+          "tier": "strong",
+          "status": "passed",
+          "detail": "Verified official sender domain: tcs.com",
+          "source": "offline",
+          "score_delta": 0
+        }
+      },
+      {
+        "stage": "final",
+        "payload": {
+          "verdict": "SAFE",
+          "legitimacy_score": 75,
+          "evidence_coverage": "low",
+          "summary": "No immediate warning signs were detected in this job posting. However, you should always remain cautious when sharing your personal information online.",
+          "red_flags": [],
+          "checks": [
+            {
+              "id": "official_domain",
+              "name": "Official Domain Check",
+              "tier": "strong",
+              "status": "passed",
+              "detail": "Verified official sender domain: tcs.com",
+              "source": "offline",
+              "score_delta": 25
+            }
+          ],
+          "positive_signs": [
+            "Verified: Verified official sender domain: tcs.com"
+          ],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline)."
+          ],
+          "verify_links": [
+            {
+              "label": "LinkedIn Company Page",
+              "url": "https://www.linkedin.com/search/results/companies/?keywords=TCS"
+            },
+            {
+              "label": "Glassdoor Reviews",
+              "url": "https://www.glassdoor.co.in/Search/results.htm?keyword=TCS"
+            },
+            {
+              "label": "AmbitionBox Company Profile",
+              "url": "https://www.ambitionbox.com/search?keyword=TCS"
+            },
+            {
+              "label": "Google Scam Search",
+              "url": "https://www.google.com/search?q=TCS+scam"
+            },
+            {
+              "label": "Ministry of Corporate Affairs (MCA)",
+              "url": "https://www.mca.gov.in/content/mca/global/en/mca/master-data/MDS.html"
+            },
+            {
+              "label": "Official Company Website",
+              "url": "https://tcs.com"
+            },
+            {
+              "label": "National Cyber Crime Portal",
+              "url": "https://cybercrime.gov.in"
+            }
+          ],
+          "extracted": {
+            "company": "TCS",
+            "role": "",
+            "pay": "",
+            "channel": "Email",
+            "emails": [
+              "careers@tcs.com"
+            ],
+            "phones": [],
+            "urls": [
+              "tcs.com/careers"
+            ],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "preliminary": false,
+          "elapsed_s": 33.44,
+          "explanation_source": "model"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sample_neutral_recruiter",
+    "label": "Neutral Recruiter Message",
+    "text": "We are looking for Python developers with 2 years of experience. Interested applicants can send their resumes for evaluation.",
+    "events": [
+      {
+        "stage": "extracted",
+        "payload": {
+          "extracted": {
+            "company": "",
+            "role": "Python developers",
+            "pay": "",
+            "channel": "",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "transcript": "We are looking for Python developers with 2 years of experience. Interested applicants can send their resumes for evaluation."
+        }
+      },
+      {
+        "stage": "checker_done",
+        "payload": {
+          "verdict": "SUSPICIOUS",
+          "legitimacy_score": 50,
+          "evidence_coverage": "low",
+          "summary": "Caution: Insufficient verifiable employer details were found in this offer.",
+          "red_flags": [],
+          "checks": [],
+          "positive_signs": [],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline)."
+          ],
+          "verify_links": [],
+          "extracted": {
+            "company": "",
+            "role": "Python developers",
+            "pay": "",
+            "channel": "",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "preliminary": true
+        }
+      },
+      {
+        "stage": "verifier_check",
+        "payload": {
+          "id": "official_domain",
+          "name": "Official Domain Check",
+          "tier": "strong",
+          "status": "unavailable",
+          "detail": "Company not in our list of known employers",
+          "source": "offline",
+          "score_delta": 0
+        }
+      },
+      {
+        "stage": "final",
+        "payload": {
+          "verdict": "SUSPICIOUS",
+          "legitimacy_score": 50,
+          "evidence_coverage": "low",
+          "summary": "Caution: Insufficient verifiable employer details were found in this offer.",
+          "red_flags": [],
+          "checks": [
+            {
+              "id": "official_domain",
+              "name": "Official Domain Check",
+              "tier": "strong",
+              "status": "unavailable",
+              "detail": "Company not in our list of known employers",
+              "source": "offline",
+              "score_delta": 0
+            }
+          ],
+          "positive_signs": [],
+          "next_steps": [
+            "Do not pay any registration, training, kit, or security deposit fees.",
+            "Do not share OTPs, passwords, or personal ID documents (Aadhaar, PAN).",
+            "Verify the company on its official website and reach out only through officially listed contacts.",
+            "Report fraudulent job offers at cybercrime.gov.in or call 1930 (National Cyber Crime Helpline)."
+          ],
+          "verify_links": [
+            {
+              "label": "National Cyber Crime Portal",
+              "url": "https://cybercrime.gov.in"
+            }
+          ],
+          "extracted": {
+            "company": "",
+            "role": "Python developers",
+            "pay": "",
+            "channel": "",
+            "emails": [],
+            "phones": [],
+            "urls": [],
+            "upi_ids": [],
+            "amounts": [],
+            "unverified_fields": []
+          },
+          "preliminary": false,
+          "elapsed_s": 25.05,
+          "explanation_source": "template"
+        }
+      }
+    ]
+  }
+]
