@@ -17,13 +17,24 @@ class LLMError(Exception):
     pass
 
 
+# Module-level variable tracking the specific model that generated the last answer
+last_model_used: str | None = None
+
 # In-memory cache for repeated identical queries: hash(model, prompt, image, json_mode) -> response
 _CACHE: dict[str, str] = {}
 _MAX_CACHE_ENTRIES = 128
 
 
+def get_last_model_used() -> str | None:
+    """Return the name of the model that answered the most recent call."""
+    return last_model_used
+
+
 def _get_api_key() -> str | None:
-    """Read GEMINI_API_KEY from environment or Streamlit secrets as fallback."""
+    """Read GEMINI_API_KEY from environment or Streamlit secrets as fallback.
+    
+    Never logs or prints the key.
+    """
     key = os.environ.get("GEMINI_API_KEY")
     if key and key.strip():
         return key.strip()
@@ -36,6 +47,22 @@ def _get_api_key() -> str | None:
     except Exception:
         pass
     return None
+
+
+def _get_model_name() -> str:
+    """Read GEMMA_MODEL from environment or Streamlit secrets with default fallback."""
+    model = os.environ.get("GEMMA_MODEL")
+    if model and model.strip():
+        return model.strip()
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and "GEMMA_MODEL" in st.secrets:
+            val = str(st.secrets["GEMMA_MODEL"]).strip()
+            if val:
+                return val
+    except Exception:
+        pass
+    return "gemma-4-31b-it"
 
 
 def _is_retryable(error: Exception) -> bool:
@@ -69,12 +96,12 @@ def ask_gemma(
     json_mode: bool = False,
 ) -> str:
     """Query Gemma model via google-genai SDK with caching, retry logic, and error sanitization."""
-    # Model name from GEMMA_MODEL env var.
-    # NOTE: Default "gemma-4-31b-it" is UNVERIFIED and must be confirmed with check_models.py.
-    model_name = os.environ.get("GEMMA_MODEL", "gemma-4-31b-it").strip()
+    global last_model_used
+
+    primary_model = _get_model_name()
 
     # Check in-memory cache to return instant response for duplicate calls
-    cache_key = _make_cache_key(model_name, prompt, image_bytes, json_mode)
+    cache_key = _make_cache_key(primary_model, prompt, image_bytes, json_mode)
     if cache_key in _CACHE:
         return _CACHE[cache_key]
 
@@ -110,17 +137,16 @@ def ask_gemma(
 
     config = types.GenerateContentConfig(**config_params)
 
-    # Primary model from GEMMA_MODEL env var.
-    # NOTE: Default "gemma-4-31b-it" is UNVERIFIED. If it encounters a 500 server error,
-    # we automatically fall back to verified available "gemma-4-26b-a4b-it".
-    primary_model = os.environ.get("GEMMA_MODEL", "gemma-4-31b-it").strip()
+    # Primary model with automatic fallback to gemma-4-26b-a4b-it if primary encounters 500 error
     candidate_models = [primary_model]
     if primary_model != "gemma-4-26b-a4b-it":
         candidate_models.append("gemma-4-26b-a4b-it")
 
-    # Retry loop with backoff for 429 and 5xx errors across candidate models
+    # Retry loop with exponential backoff for 429 and 5xx errors (max 3 tries, wait under 20s)
+    # backoffs: 2s, 4s, 8s -> total 14s < 20s
+    max_retries = 3
     for m_name in candidate_models:
-        for attempt in range(limits.LLM_MAX_RETRIES + 1):
+        for attempt in range(max_retries):
             try:
                 response = client.models.generate_content(
                     model=m_name,
@@ -128,6 +154,7 @@ def ask_gemma(
                     config=config,
                 )
                 text_out = response.text or ""
+                last_model_used = m_name
 
                 # Store in in-memory cache
                 if len(_CACHE) >= _MAX_CACHE_ENTRIES:
@@ -148,17 +175,19 @@ def ask_gemma(
                             config=fallback_config,
                         )
                         text_out = fallback_resp.text or ""
+                        last_model_used = m_name
                         _CACHE[cache_key] = text_out
                         return text_out
                     except Exception as inner_exc:
                         exc = inner_exc
 
-                # If server error (500) and we have another candidate model, break to next candidate
-                if getattr(exc, "code", None) == 500 or "500" in str(exc):
+                # If server error (500) and an alternate model is available, move to fallback
+                if (getattr(exc, "code", None) == 500 or "500" in str(exc)) and len(candidate_models) > 1 and m_name == candidate_models[0]:
                     break
 
-                if attempt < limits.LLM_MAX_RETRIES and _is_retryable(error=exc):
-                    time.sleep(limits.LLM_BACKOFF_S * (attempt + 1))
+                if attempt < max_retries - 1 and _is_retryable(error=exc):
+                    backoff = min(limits.LLM_BACKOFF_S * (2 ** attempt), 8)
+                    time.sleep(backoff)
                     continue
                 break
 
