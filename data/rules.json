@@ -1,0 +1,143 @@
+{
+  "scoring": {
+    "base_score": 50,
+    "flag_penalties": {
+      "high": -30,
+      "medium": -15,
+      "low": -5
+    },
+    "check_deltas": {
+      "strong":     {"passed": 25, "failed": -20, "unavailable": 0},
+      "supporting":  {"passed": 10, "failed": -10, "unavailable": 0},
+      "weak":        {"passed":  5, "failed":  -5, "unavailable": 0}
+    },
+    "hard_caps": {
+      "fee_otp_id_cap":  29,
+      "domain_spoof_cap": 35
+    },
+    "clamp_min": 1,
+    "clamp_max": 99,
+    "verdict_thresholds": {
+      "safe_min":       70,
+      "suspicious_min": 40
+    }
+  },
+
+  "checks": [
+    {"id": "free_email_hr",    "name": "Free-mail HR address",                                           "tier": "medium",     "source": "offline", "max_points":  5, "flag_ids": ["free_email_for_hr"]},
+    {"id": "blocklisted_domain","name": "Blocklisted domain",                                             "tier": "high",       "source": "offline", "max_points":  7, "flag_ids": ["blocklisted_domain"]},
+    {"id": "suspicious_tld",   "name": "Suspicious TLD",                                                 "tier": "low",        "source": "offline", "max_points":  3, "flag_ids": ["suspicious_tld"]},
+    {"id": "lookalike_domain", "name": "Lookalike domain",                                               "tier": "high",       "source": "offline", "max_points":  8, "flag_ids": ["lookalike_spoof_domain"]},
+    {"id": "payment_demand",   "name": "Payment demand (fee, deposit, UPI, QR, personal account)",       "tier": "high",       "source": "offline", "max_points": 12, "flag_ids": ["fee_or_deposit_demand", "upi_payment_handle_present", "upi_or_personal_payment_request"]},
+    {"id": "otp_request",      "name": "OTP, PIN or password request",                                   "tier": "high",       "source": "offline", "max_points":  8, "flag_ids": ["otp_or_pin_request"]},
+    {"id": "id_doc_request",   "name": "Sensitive ID document request",                                  "tier": "high",       "source": "offline", "max_points":  7, "flag_ids": ["sensitive_id_document_before_interview"]},
+    {"id": "no_interview",     "name": "No interview or guaranteed job",                                  "tier": "medium",     "source": "offline", "max_points":  4, "flag_ids": ["no_interview_direct_selection"]},
+    {"id": "urgency_pressure", "name": "Extreme urgency pressure",                                       "tier": "medium",     "source": "offline", "max_points":  4, "flag_ids": ["extreme_urgency_pressure"]},
+    {"id": "chat_only",        "name": "Chat-only recruitment (WhatsApp or Telegram)",                   "tier": "medium",     "source": "offline", "max_points":  4, "flag_ids": ["chat_only_recruitment"]},
+    {"id": "linkedin_masshire","name": "LinkedIn mass-hiring drive mentioned",                            "tier": "low",        "source": "offline", "max_points":  2, "flag_ids": ["linkedin_mass_hiring"]},
+    {"id": "official_domain",  "name": "Official company domain",                                        "tier": "strong",     "source": "offline", "max_points": 15, "flag_ids": []},
+    {"id": "pay_plausibility", "name": "Pay plausibility",                                               "tier": "supporting", "source": "offline", "max_points":  8, "flag_ids": []},
+    {"id": "domain_age",       "name": "Domain registration age (RDAP)",                                 "tier": "supporting", "source": "web",     "max_points":  7, "flag_ids": []},
+    {"id": "site_legal_pages", "name": "Company website legal pages",                                    "tier": "weak",       "source": "web",     "max_points":  5, "flag_ids": []},
+    {"id": "verify_links",     "name": "Verify links",                                                   "tier": "info",       "source": "offline", "max_points":  0, "flag_ids": []}
+  ],
+
+  "rules": [
+    {
+      "id": "fee_or_deposit_demand",
+      "category": "hard_cap_fee",
+      "severity": "high",
+      "description": "Demands an upfront registration, training, laptop/kit, verification, or refundable security deposit fee.",
+      "patterns": [
+        "(?i)\\b(registration|onboarding|training|security|verification|processing|documentation|laptop|welcome\\s*kit|id\\s*card|agreement|background\\s*check)\\s*(fee|fees|charge|charges|deposit|amount|payment)\\b",
+        "(?i)\\b(pay|deposit|transfer|send)\\s*(rs\\.?|inr|₹)?\\s*[0-9,]{3,7}\\s*(for|towards|as|before|to\\s+confirm)\\b",
+        "(?i)\\b(refundable\\s+(security\\s+)?(deposit|amount|fee))\\b",
+        "(?i)\\b(fees?\\s+lagega|paisa\\s+bhare|security\\s+deposit\\s+dena\\s+hoga|registration\\s+charge\\s+pay\\s+kare)\\b",
+        "(?i)(पंजीकरण\\s*शुल्क|सिक्योरिटी\\s*डिपॉजिट|ट्रेनिंग\\s*फीस|फीस\\s*जमा)"
+      ]
+    },
+    {
+      "id": "upi_or_personal_payment_request",
+      "category": "hard_cap_fee",
+      "severity": "high",
+      "description": "Asks to send money via UPI ID, QR code, GPay, PhonePe, Paytm, or personal bank transfer.",
+      "patterns": [
+        "(?i)\\b(upi\\s*id|scan\\s*(the|this)?\\s*qr|qr\\s*code|gpay|google\\s*pay|phonepe|paytm\\s*number|send\\s*screenshot\\s*of\\s*payment|payment\\s*screenshot)\\b",
+        "(?i)\\b[a-zA-Z0-9.\\-_]{2,40}@(okaxis|okhdfcbank|okicici|oksbi|ybl|ibl|axl|paytm|apl|upi|freecharge|kotak)\\b"
+      ]
+    },
+    {
+      "id": "otp_or_pin_request",
+      "category": "hard_cap_otp",
+      "severity": "high",
+      "description": "Requests OTP, UPI PIN, netbanking password, or CVV.",
+      "patterns": [
+        "(?i)\\b(share|send|provide|enter|tell)\\s+(your\\s+|the\\s+)?(otp|one\\s*time\\s*password|upi\\s*pin|atm\\s*pin|cvv|netbanking\\s*password)\\b",
+        "(?i)\\b(otp\\s+bheje|otp\\s+share\\s+kare|pin\\s+bataye)\\b"
+      ]
+    },
+    {
+      "id": "sensitive_id_document_before_interview",
+      "category": "hard_cap_id",
+      "severity": "high",
+      "description": "Demands Aadhaar card, PAN card, bank passbook, or cancelled cheque upfront via chat/email to issue an offer.",
+      "patterns": [
+        "(?i)\\b(send|share|upload|submit|provide|email|whatsapp)\\s+(your\\s+)?(aadhaar|aadhar)(\\s+card)?\\b.{0,50}\\b(to\\s+issue|for\\s+offer\\s+letter|immediately|on\\s+whatsapp|for\\s+registration|for\\s+verification|before\\s+(the\\s+)?interview|for\\s+onboarding)\\b",
+        "(?i)\\b(send|share|upload|submit|provide|email|whatsapp)\\s+(your\\s+)?(pan\\s*card|bank\\s*passbook|cancelled\\s*cheque|passport\\s*copy)\\s*(to\\s+issue|for\\s+offer\\s+letter|immediately|on\\s+whatsapp|for\\s+registration|for\\s+verification|before\\s+(the\\s+)?interview|for\\s+onboarding)\\b",
+        "(?i)\\b(aadhar\\s+card\\s+aur\\s+pan\\s+card\\s+whatsapp\\s+kare)\\b"
+      ]
+    },
+    {
+      "id": "no_interview_direct_selection",
+      "category": "process",
+      "severity": "medium",
+      "description": "Claims direct selection or guaranteed job offer without any technical or HR interview.",
+      "patterns": [
+        "(?i)\\b(no\\s+interview|without\\s+(any\\s+)?interview|direct\\s+(joining|selection|offer\\s+letter)|100%\\s*job\\s*guarantee|guaranteed\\s+(?:(?:a|an)\\s+)?(job|selection|placement))\\b",
+        "(?i)\\b(bina\\s+interview|seedha\\s+joining|direct\\s+bharti)\\b",
+        "(?i)(बिना\\s*इंटरव्यू|सीधी\\s*भर्ती|पक्की\\s*नौकरी)"
+      ]
+    },
+    {
+      "id": "extreme_urgency_pressure",
+      "category": "pressure",
+      "severity": "medium",
+      "description": "Uses artificial countdowns or threats of immediate offer cancellation to prevent verification.",
+      "patterns": [
+        "(?i)\\b(within\\s+(15|30|45)\\s*minutes|within\\s+[12]\\s*hours|pay\\s+before\\s+[0-9]{1,2}\\s*(am|pm)|offer\\s+will\\s+be\\s+cancelled\\s+today|last\\s+[235]\\s*slots?\\s+left|urgent\\s+slot\\s+booking)\\b",
+        "(?i)\\b(abhi\\s+payment\\s+kare|seat\\s+cancel\\s+ho\\s+jayega|turant\\s+confirm\\s+kare)\\b"
+      ]
+    },
+    {
+      "id": "unrealistic_daily_or_part_time_pay",
+      "category": "pay",
+      "severity": "high",
+      "description": "Promises unrealistic daily payouts (e.g., ₹2,000–₹8,000/day) for simple phone/part-time tasks.",
+      "patterns": [
+        "(?i)\\b(earn|income|salary|payout)\\s*(of\\s*)?(rs\\.?|inr|₹)?\\s*[2-9],?[0-9]{3}\\s*(to\\s*(rs\\.?|inr|₹)?\\s*[0-9,]+\\s*)?(per\\s*day|/\\s*day|daily)\\b",
+        "(?i)\\b(work\\s+[12]\\s*hours?\\s*daily|work\\s+from\\s+mobile|like\\s+and\\s+subscribe\\s+task|youtube\\s+video\\s+like|google\\s+map\\s+review\\s+task|telegram\\s+prepaid\\s+task)\\b",
+        "(?i)\\b(ghar\\s+baithe\\s+roz\\s+kamaye|mobile\\s+se\\s+daily\\s+earning)\\b"
+      ]
+    },
+    {
+      "id": "chat_only_recruitment",
+      "category": "channel",
+      "severity": "low",
+      "description": "Directs candidate exclusively to WhatsApp or Telegram numbers/links for HR onboarding.",
+      "patterns": [
+        "(?i)\\b(contact\\s+hr\\s+on\\s+(whatsapp|telegram)|join\\s+(our\\s+)?telegram\\s+channel|message\\s+on\\s+whatsapp\\s+to\\s+claim|t\\.me/[a-zA-Z0-9_]+|wa\\.me/[0-9]+)\\b"
+      ]
+    },
+    {
+      "id": "linkedin_mass_hiring",
+      "category": "channel",
+      "severity": "low",
+      "description": "Mentions a LinkedIn mass-hiring drive or bulk recruitment campaign, which is a common social-engineering tactic.",
+      "patterns": [
+        "(?i)\\blinkedin\\b.{0,50}\\b(mass|bulk|campus|mega)\\s+(hiring|recruitment|drive)\\b",
+        "(?i)\\b(mass|bulk|campus|mega)\\s+(hiring|recruitment|drive)\\b.{0,50}\\blinkedin\\b",
+        "(?i)\\blinkedin\\b.{0,50}\\b(bahut\\s+vacancy|bulk\\s+joining|bulk\\s+offer)\\b"
+      ]
+    }
+  ]
+}
