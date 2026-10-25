@@ -74,7 +74,7 @@ POST /api/check (multipart)
   pipeline.py – sync generator, runs in FastAPI threadpool
         │
         ├─ Step 0: normalize_input (inputs.py) – in-memory, no disk writes
-        ├─ Stage extract: run_extraction (agents/extract.py) – Gemma 4
+        ├─ Stage extract: run_extraction (agents/extract.py) – Gemma 4 extracts company website/address, role, location, pay, deadline and contacts
         ├─ Checks 1-11: run_red_flag_checks (agents/check.py) – offline regex/fuzzy
         ├─ Check 12: _check_official_domain (agents/verify.py) – offline
         ├─ Check 13: _check_salary_plausibility (agents/verify.py) – offline
@@ -84,6 +84,7 @@ POST /api/check (multipart)
 ```
 
 Each step emits NDJSON events (`application/x-ndjson`) so the frontend spinner moves in real time — **no client-side timers**.
+Image extraction keeps the company's explicitly identified website separate from job-board/application URLs; only that company website is prioritized for official-domain, RDAP, and legal-page checks. Addresses and job details are retained as structured extraction data and do not independently change the score. If image reading fails, analysis stops with an error rather than treating missing evidence as a clean offer.
 
 ---
 

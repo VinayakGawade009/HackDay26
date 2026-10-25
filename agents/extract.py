@@ -16,7 +16,7 @@ from schemas import ExtractedFields, ExtractionResult, NormalizedInput, VisualCu
 
 EMAIL_REGEX = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24}\b")
 URL_REGEX = re.compile(
-    r"\b(?:https?://|www\.|[a-zA-Z0-9\-]+\.(?:com|in|org|net|co\.in|io|xyz|top|site|online|icu|work|click|buzz|me))[^\s<>\"'\)\]]*",
+    r"\b(?:https?://|www\.|[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*\.[a-zA-Z]{2,24})[^\s<>\"'\)\]]*",
     re.IGNORECASE,
 )
 PHONE_REGEX = re.compile(r"(?:\+?91[\-\s]?)?[6-9]\d{9}\b")
@@ -38,7 +38,12 @@ Return ONLY a valid JSON object matching this exact structure (no markdown fence
   "verbatim_transcription": "Exact character-by-character transcription of all visible text. Do not fix spelling or guess unclear characters.",
   "extracted": {{
     "company": "Claimed company or organization name, or empty string",
+    "company_website": "The company's own official website URL printed in the offer, not a job-board/application portal; otherwise empty",
+    "company_address": "Company postal/office address as printed, or empty string",
     "role": "Job title or internship role offered, or empty string",
+    "job_location": "Work location or remote/hybrid arrangement, or empty string",
+    "employment_type": "Employment type such as full-time, contract, internship, or empty string",
+    "application_deadline": "Application/interview/offer deadline if explicitly stated, or empty string",
     "pay": "Salary, stipend, or daily payout mentioned (with currency/period), or empty string",
     "sender_channel": "whatsapp | telegram | email | sms | letter | unknown",
     "emails": ["exact email addresses found"],
@@ -54,6 +59,12 @@ Return ONLY a valid JSON object matching this exact structure (no markdown fence
     "tone_and_pressure": "Note urgency, threats, guaranteed selection claims, or 'Professional'"
   }}
 }}
+
+Extraction rules:
+- Transcribe every visible page/image, including headers, footers, fine print, stamps, and contact blocks.
+- Copy only information explicitly visible. Use empty strings/lists for missing or unreadable information; never infer an address, URL, role, or company identity.
+- Keep company_website separate from application/job-board links. Include exact links in urls regardless of their purpose.
+- Do not treat an email address's domain or a job-board URL as the company's website unless the offer explicitly identifies it as such.
 
 {extra_context}
 """
@@ -153,10 +164,21 @@ def _heuristic_fallback_extraction(text: str) -> ExtractionResult:
     elif "dear candidate" in low or "offer letter" in low:
         channel = "letter"
 
+    website_match = re.search(
+        r"(?im)^\s*(?:company\s+)?(?:official\s+)?website\s*[:\-]\s*(https?://\S+|www\.\S+)",
+        text,
+    )
+    address_match = re.search(
+        r"(?im)^\s*(?:registered\s+office|office\s+address|company\s+address|address)\s*[:\-]\s*(.+)$",
+        text,
+    )
+
     return ExtractionResult(
         verbatim_transcription=text,
         extracted=ExtractedFields(
             company=company,
+            company_website=website_match.group(1).rstrip(".,;") if website_match else "",
+            company_address=address_match.group(1).strip() if address_match else "",
             role=role,
             pay=scanned["amounts"][0] if scanned["amounts"] else "",
             sender_channel=channel,
@@ -190,8 +212,12 @@ def run_extraction(norm_input: NormalizedInput) -> ExtractionResult:
             images=norm_input.images if is_image_mode else None,
             expect_json=True,
         )
-    except Exception:
+    except Exception as exc:
         fallback_source = norm_input.pdf_text_layer or norm_input.text or ""
+        if is_image_mode and not fallback_source:
+            raise RuntimeError(
+                "Image extraction failed. Please retry or paste the offer text."
+            ) from exc
         return _heuristic_fallback_extraction(fallback_source)
 
     ext_data: Dict[str, Any] = raw_dict.get("extracted", {}) if isinstance(raw_dict, dict) else {}
@@ -203,7 +229,12 @@ def run_extraction(norm_input: NormalizedInput) -> ExtractionResult:
 
     fields = ExtractedFields(
         company=str(ext_data.get("company", "") or "").strip(),
+        company_website=str(ext_data.get("company_website", "") or "").strip(),
+        company_address=str(ext_data.get("company_address", "") or "").strip(),
         role=str(ext_data.get("role", "") or "").strip(),
+        job_location=str(ext_data.get("job_location", "") or "").strip(),
+        employment_type=str(ext_data.get("employment_type", "") or "").strip(),
+        application_deadline=str(ext_data.get("application_deadline", "") or "").strip(),
         pay=str(ext_data.get("pay", "") or "").strip(),
         sender_channel=str(ext_data.get("sender_channel", "unknown") or "unknown").lower().strip(),
         emails=[str(x).strip().lower() for x in (ext_data.get("emails") or []) if str(x).strip()],
@@ -222,6 +253,8 @@ def run_extraction(norm_input: NormalizedInput) -> ExtractionResult:
         else:
             clean_emails.append(em)
     fields.emails = clean_emails
+    if fields.company_website and fields.company_website not in fields.urls:
+        fields.urls.append(fields.company_website)
 
     # If image mode (and no exact PDF text layer), validate with regex and re-read ONCE if malformed
     unverified: Set[str] = set()
@@ -277,6 +310,29 @@ def run_extraction(norm_input: NormalizedInput) -> ExtractionResult:
             for item in trans_scan[key]:
                 if item not in existing:
                     existing.append(item)
+
+    if is_image_mode and not (transcription or exact_text_source):
+        raise RuntimeError(
+            "No readable offer details were extracted from the uploaded image. "
+            "Please upload a clearer image or paste the offer text."
+        )
+
+    if not fields.company_website:
+        website_match = re.search(
+            r"(?i)\b(?:company|official)\s+website\s*[:\-]?\s*(https?://\S+|www\.\S+)",
+            transcription,
+        )
+        if website_match:
+            fields.company_website = website_match.group(1).rstrip(".,;")
+            if fields.company_website not in fields.urls:
+                fields.urls.insert(0, fields.company_website)
+    if not fields.company_address:
+        address_match = re.search(
+            r"(?im)^\s*(?:registered\s+office|office\s+address|company\s+address|address)\s*[:\-]\s*(.+)$",
+            transcription,
+        )
+        if address_match:
+            fields.company_address = address_match.group(1).strip()
 
     fields.unverified_fields = sorted(unverified)
 

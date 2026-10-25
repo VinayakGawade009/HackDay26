@@ -64,7 +64,12 @@ def _extract_candidate_corporate_domains(
 ) -> List[str]:
     """Collects non-freemail registered domains from extracted emails and URLs."""
     domains: List[str] = []
-    for raw in extraction.extracted.emails + extraction.extracted.urls:
+    raw_domains = (
+        ([extraction.extracted.company_website] if extraction.extracted.company_website else [])
+        + extraction.extracted.emails
+        + extraction.extracted.urls
+    )
+    for raw in raw_domains:
         reg_dom, _stem, _suf = extract_registered_domain(raw)
         if not reg_dom or reg_dom in free_mail_domains:
             continue
@@ -82,9 +87,14 @@ def _check_official_domain(
 ) -> Tuple[CheckResult, Optional[Dict[str, Any]]]:
     """Check 1 (strong, offline): Compares extracted domain against real_companies.json."""
     matched_comp = _match_claimed_company(extraction.extracted.company, companies_list)
+    domain_sources = (
+        extraction.extracted.emails + [extraction.extracted.company_website]
+        if extraction.extracted.company_website
+        else extraction.extracted.emails + extraction.extracted.urls
+    )
     all_Extracted_domains = [
         extract_registered_domain(x)[0]
-        for x in (extraction.extracted.emails + extraction.extracted.urls)
+        for x in domain_sources
         if extract_registered_domain(x)[0]
     ]
 

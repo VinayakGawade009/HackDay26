@@ -24,7 +24,12 @@ class VisualCues(BaseModel):
 class ExtractedFields(BaseModel):
     """Structured fields extracted by Agent 1 (extract.py)."""
     company: str = ""
+    company_website: str = ""
+    company_address: str = ""
     role: str = ""
+    job_location: str = ""
+    employment_type: str = ""
+    application_deadline: str = ""
     pay: str = ""
     sender_channel: str = "unknown"
     emails: List[str] = Field(default_factory=list)
